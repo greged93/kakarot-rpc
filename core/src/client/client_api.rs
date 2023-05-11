@@ -2,16 +2,16 @@ use eyre::Result;
 
 // TODO: all reth_primitives::rpc types should be replaced when native reth Log is implemented
 // https://github.com/paradigmxyz/reth/issues/1396#issuecomment-1440890689
-use reth_primitives::{Address, BlockId, BlockNumberOrTag, Bytes, H256, U128, U256, U64};
+use reth_primitives::{Address, BlockNumberOrTag, Bytes, H256, U128, U256, U64};
 use reth_rpc_types::{
-    BlockTransactions, CallRequest, FeeHistory, RichBlock, SyncStatus,
-    Transaction as EtherTransaction, TransactionReceipt,
+    BlockTransactions, FeeHistory, RichBlock, SyncStatus, Transaction as EtherTransaction,
+    TransactionReceipt,
 };
 use starknet::{
     core::types::FieldElement,
     providers::jsonrpc::{
         models::{
-            BlockId as StarknetBlockId, BroadcastedInvokeTransactionV1,
+            BlockId as StarknetBlockId, BroadcastedInvokeTransactionV1, BroadcastedTransaction,
             Transaction as StarknetTransaction,
         },
         JsonRpcClientError,
@@ -148,7 +148,7 @@ pub trait KakarotClient: Send + Sync {
 
     async fn estimate_gas(
         &self,
-        call_request: CallRequest,
-        block_number: Option<BlockId>,
+        call_request: BroadcastedTransaction,
+        block_number: Option<StarknetBlockId>,
     ) -> Result<U256, KakarotClientError>;
 }

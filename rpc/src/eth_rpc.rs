@@ -9,15 +9,23 @@ use kakarot_rpc_core::{
     helpers::ethers_block_id_to_starknet_block_id,
 };
 use reth_primitives::{
-    rpc::transaction::eip2930::AccessListWithGasUsed, Address, BlockId, BlockNumberOrTag, Bytes,
-    H256, H64, U128, U256, U64,
+    bytes::BytesMut, rpc::transaction::eip2930::AccessListWithGasUsed, Address, BlockId,
+    BlockNumberOrTag, Bytes, H256, H64, U128, U256, U64,
 };
 
+use reth_rlp::Encodable;
 use reth_rpc_types::{
     CallRequest, EIP1186AccountProofResponse, FeeHistory, Index, RichBlock, SyncStatus,
     Transaction as EtherTransaction, TransactionReceipt, TransactionRequest, Work,
 };
 use serde_json::Value;
+use starknet::{
+    core::types::FieldElement,
+    providers::jsonrpc::models::{
+        BlockId as StarknetBlockId, BlockTag, BroadcastedInvokeTransaction,
+        BroadcastedInvokeTransactionV1, BroadcastedTransaction,
+    },
+};
 
 use crate::eth_api::EthApiServer;
 use kakarot_rpc_core::client::types::TokenBalances;
@@ -243,7 +251,123 @@ impl EthApiServer for KakarotEthRpc {
         _request: CallRequest,
         _block_number: Option<BlockId>,
     ) -> Result<U256> {
-        Ok(U256::from(1_000_000_000_u64))
+        type FutureEncodable = dyn Encodable + Send + Sync;
+        type BoxedFutureEncodable = Box<FutureEncodable>;
+        // Parse the request
+        let chain_id = self.chain_id().await?.ok_or_else(|| {
+            jsonrpsee::core::Error::Call(CallError::InvalidParams(anyhow::anyhow!(
+                "Chain ID is None. Cannot process a Kakarot call",
+            )))
+        })?;
+        let nonce = _request.nonce.ok_or_else(|| {
+            jsonrpsee::core::Error::Call(CallError::InvalidParams(anyhow::anyhow!(
+                "CallRequest `nonce` field is None. Cannot process a Kakarot call",
+            )))
+        })?;
+        let max_priority_fee_per_gas = _request
+            .max_priority_fee_per_gas
+            .unwrap_or_else(|| U128::from(1_000_u128));
+        let max_fee_per_gas = _request
+            .max_fee_per_gas
+            .unwrap_or_else(|| U128::from(1_000_u128));
+        let gas_limit = _request
+            .gas
+            .unwrap_or_else(|| U256::from(1_000_000_000_u128));
+        let destination = _request.to.ok_or_else(|| {
+            jsonrpsee::core::Error::Call(CallError::InvalidParams(anyhow::anyhow!(
+                "CallRequest `to` field is None. Cannot process a Kakarot call",
+            )))
+        })?;
+        let amount = _request.value.unwrap_or_else(|| U256::from(0_u128));
+        let data = _request.data.unwrap_or_else(|| Bytes::from(vec![]));
+        // TODO check how to encode
+        let access_list: Vec<BoxedFutureEncodable> = vec![];
+        // Encode request into rlp payload
+        let transaction_payload: Vec<BoxedFutureEncodable> = vec![
+            Box::new(chain_id),
+            Box::new(nonce),
+            Box::new(max_priority_fee_per_gas),
+            Box::new(max_fee_per_gas),
+            Box::new(gas_limit),
+            Box::new(destination),
+            Box::new(amount),
+            Box::new(data),
+            Box::new(access_list),
+            Box::new(U256::from(0)),
+            Box::new(U256::from(0)),
+            Box::new(0_u8),
+        ];
+        let mut out = BytesMut::new();
+        reth_rlp::encode_list::<FutureEncodable, BoxedFutureEncodable>(
+            &transaction_payload,
+            &mut out,
+        );
+        let _out: Vec<FieldElement> = out[..].iter().map(|b| FieldElement::from(*b)).collect();
+
+        let request = BroadcastedTransaction::Invoke(BroadcastedInvokeTransaction::V1(
+            BroadcastedInvokeTransactionV1 {
+                max_fee: FieldElement::ZERO,
+                signature: vec![
+                    FieldElement::from_hex_be(
+                        "156a781f12e8743bd07e20a4484154fd0baccee95d9ea791c121c916ad44ee0",
+                    )
+                    .unwrap(),
+                    FieldElement::from_hex_be(
+                        "7228267473c670cbb86a644f8696973db978c51acde19431d3f1f8f100794c6",
+                    )
+                    .unwrap(),
+                ],
+                nonce: FieldElement::ZERO,
+                sender_address: FieldElement::from_hex_be(
+                    "5b5e9f6f6fb7d2647d81a8b2c2b99cbc9cc9d03d705576d7061812324dca5c0",
+                )
+                .unwrap(),
+                calldata: vec![
+                    FieldElement::from_hex_be("1").unwrap(),
+                    FieldElement::from_hex_be(
+                        "7394cbe418daa16e42b87ba67372d4ab4a5df0b05c6e554d158458ce245bc10",
+                    )
+                    .unwrap(),
+                    FieldElement::from_hex_be(
+                        "2f0b3c5710379609eb5495f1ecd348cb28167711b73609fe565a72734550354",
+                    )
+                    .unwrap(),
+                    FieldElement::from_hex_be("0").unwrap(),
+                    FieldElement::from_hex_be("3").unwrap(),
+                    FieldElement::from_hex_be("3").unwrap(),
+                    FieldElement::from_hex_be(
+                        "5b5e9f6f6fb7d2647d81a8b2c2b99cbc9cc9d03d705576d7061812324dca5c0",
+                    )
+                    .unwrap(),
+                    FieldElement::from_hex_be("3635c9adc5dea00000").unwrap(),
+                    FieldElement::from_hex_be("0").unwrap(),
+                ],
+                //     max_fee: FieldElement::from(1_000_000_000_u64),
+                //     signature: vec![FieldElement::from(0_u64), FieldElement::from(0_u64)],
+                //     nonce: FieldElement::from_bytes_be(&nonce.to_be_bytes::<32>()).map_err(|_| {
+                //         jsonrpsee::core::Error::Call(CallError::InvalidParams(anyhow::anyhow!(
+                //             "Failed to convert nonce. Cannot process a Kakarot call",
+                //         )))
+                //     })?,
+                //     sender_address:
+                // FieldElement::from_byte_slice_be(destination.as_bytes()).map_err(
+                //         |_| {
+                //
+                // jsonrpsee::core::Error::Call(CallError::InvalidParams(anyhow::anyhow!(
+                //                 "Failed to convert destination. Cannot process a Kakarot call",
+                //             )))
+                //         },
+                //     )?,
+                //     calldata: out,
+            },
+        ));
+
+        // Make call to get_estimate_fee
+        let fee = self
+            .kakarot_client
+            .estimate_gas(request, Some(StarknetBlockId::Tag(BlockTag::Latest)))
+            .await?;
+        Ok(fee)
     }
 
     async fn gas_price(&self) -> Result<U256> {

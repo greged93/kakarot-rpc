@@ -17,19 +17,19 @@ use reth_primitives::{
 use reth_rlp::Decodable;
 
 use reth_rpc_types::{
-    Block, BlockTransactions, CallRequest, FeeHistory, Header, Rich, RichBlock, Signature,
-    SyncInfo, SyncStatus, Transaction as EtherTransaction, TransactionReceipt,
+    Block, BlockTransactions, FeeHistory, Header, Rich, RichBlock, Signature, SyncInfo, SyncStatus,
+    Transaction as EtherTransaction, TransactionReceipt,
 };
 use starknet::{
     core::types::FieldElement,
     providers::jsonrpc::{
         models::{
             BlockId as StarknetBlockId, BlockTag, BroadcastedInvokeTransaction,
-            BroadcastedInvokeTransactionV1, DeployAccountTransactionReceipt,
-            DeployTransactionReceipt, FunctionCall, InvokeTransaction, InvokeTransactionReceipt,
-            MaybePendingBlockWithTxHashes, MaybePendingBlockWithTxs,
-            MaybePendingTransactionReceipt, SyncStatusType, Transaction as StarknetTransaction,
-            TransactionReceipt as StarknetTransactionReceipt,
+            BroadcastedInvokeTransactionV1, BroadcastedTransaction,
+            DeployAccountTransactionReceipt, DeployTransactionReceipt, FunctionCall,
+            InvokeTransaction, InvokeTransactionReceipt, MaybePendingBlockWithTxHashes,
+            MaybePendingBlockWithTxs, MaybePendingTransactionReceipt, SyncStatusType,
+            Transaction as StarknetTransaction, TransactionReceipt as StarknetTransactionReceipt,
             TransactionStatus as StarknetTransactionStatus,
         },
         HttpTransport, JsonRpcClient,
@@ -1334,9 +1334,17 @@ impl KakarotClient for KakarotClientImpl {
 
     async fn estimate_gas(
         &self,
-        _call_request: CallRequest,
-        _block_number: Option<BlockId>,
+        _call_request: BroadcastedTransaction,
+        _block_number: Option<StarknetBlockId>,
     ) -> Result<U256, KakarotClientError> {
-        todo!();
+        // TODO wait for the skip validate to be supported by the RPC server
+        let fee = self
+            .client
+            .estimate_fee(_call_request, _block_number.unwrap())
+            .await
+            .map_err(|e| {
+                KakarotClientError::OtherError(anyhow::anyhow!("Kakarot estimate_gas: {}", e))
+            })?;
+        Ok(U256::from(fee.gas_consumed))
     }
 }

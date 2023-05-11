@@ -7,9 +7,10 @@ mod tests {
         assert_helpers::{assert_block, assert_block_header, assert_transaction},
         utils::setup_kakarot_eth_rpc,
     };
-    use kakarot_rpc::eth_api::EthApiServer;
-    use reth_primitives::{BlockNumberOrTag, H160, H256, U256, U64};
-    use reth_rpc_types::Index;
+    use kakarot_rpc::{eth_api::EthApiServer, eth_rpc::KakarotEthRpc};
+    use kakarot_rpc_core::client::KakarotClientImpl;
+    use reth_primitives::{rpc::Address, BlockNumberOrTag, Bytes, H160, H256, U256, U64};
+    use reth_rpc_types::{CallRequest, Index};
     use serde_json::json;
     use starknet::{
         core::types::FieldElement, macros::felt,
@@ -445,5 +446,35 @@ mod tests {
             U256::from(transaction.block_number.unwrap()),
             U256::from(20129)
         );
+    }
+
+    #[tokio::test]
+    async fn test_estimate_gas() {
+        let kakarot_client = KakarotClientImpl::new(
+            "https://starknet-goerli.infura.io/v3/f453f09c949a453c9bc03a34efcca010",
+            FieldElement::from_str("0x1234").unwrap(),
+            FieldElement::from_str("0x5678").unwrap(),
+        )
+        .unwrap();
+        let kakarot_rpc = KakarotEthRpc::new(Box::new(kakarot_client));
+        let call_request = CallRequest {
+            from: None,
+            to: Some(
+                Address::from_str("0x0000000000000000000000000000000000001234")
+                    .unwrap()
+                    .into(),
+            ),
+            gas_price: None,
+            max_fee_per_gas: None,
+            max_priority_fee_per_gas: None,
+            gas: None,
+            value: Some(U256::from(1_000_000)),
+            data: Some(Bytes::from(vec![0x00])),
+            nonce: Some(U256::from(5)),
+            access_list: None,
+            transaction_type: Some(U256::from(2)),
+        };
+        let gas = kakarot_rpc.estimate_gas(call_request, None).await.unwrap();
+        dbg!(gas);
     }
 }
