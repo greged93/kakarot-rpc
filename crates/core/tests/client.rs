@@ -2,7 +2,10 @@ mod utils;
 
 mod tests {
 
+    use std::sync::Mutex;
+
     use ctor::ctor;
+    use dojo_test_utils::sequencer::TestSequencer;
     use ethers::types::Address as EthersAddress;
     use kakarot_rpc_core::client::api::KakarotEthApi;
     use kakarot_rpc_core::client::config::{Network, StarknetConfig};
@@ -16,31 +19,43 @@ mod tests {
 
     use crate::utils::constants::EOA_WALLET;
     use crate::utils::deploy_helpers::{
-        construct_kakarot_test_sequencer, create_raw_ethereum_tx, deploy_kakarot_system,
+        construct_kakarot_test_sequencer, create_raw_ethereum_tx, deploy_kakarot_system, DeployedKakarot,
     };
 
+    static mut SEQUENCER: Option<Mutex<TestSequencer>> = None;
+    static mut DEPLOYED_KAKAROT: Option<Mutex<DeployedKakarot>> = None;
+
+    #[tokio::test]
     #[ctor]
-    fn setup() {
-        let subscriber = FmtSubscriber::builder().with_max_level(tracing::Level::ERROR).finish();
+    async fn setup() {
+        let subscriber = FmtSubscriber::builder().with_max_level(tracing::Level::INFO).finish();
         tracing::subscriber::set_global_default(subscriber).expect("setting tracing default failed");
+
+        dbg!("first");
+        unsafe {
+            let sequencer = construct_kakarot_test_sequencer().await;
+            let expected_funded_amount = FieldElement::from_dec_str("1000000000000000000").unwrap();
+            DEPLOYED_KAKAROT =
+                Some(Mutex::new(deploy_kakarot_system(&sequencer, EOA_WALLET.clone(), expected_funded_amount).await));
+            SEQUENCER = Some(Mutex::new(sequencer));
+        }
     }
 
     #[tokio::test]
     async fn test_rpc_should_not_raise_when_eoa_not_deployed() {
-        let starknet_test_sequencer = construct_kakarot_test_sequencer().await;
+        let url;
+        let address;
+        let proxy;
 
-        let expected_funded_amount = FieldElement::from_dec_str("1000000000000000000").unwrap();
-
-        let deployed_kakarot =
-            deploy_kakarot_system(&starknet_test_sequencer, EOA_WALLET.clone(), expected_funded_amount).await;
+        unsafe {
+            url = SEQUENCER.as_ref().unwrap().lock().unwrap().url();
+            address = DEPLOYED_KAKAROT.as_ref().unwrap().lock().unwrap().kakarot;
+            proxy = DEPLOYED_KAKAROT.as_ref().unwrap().lock().unwrap().kakarot_proxy;
+        }
 
         let kakarot_client = KakarotClient::new(
-            StarknetConfig::new(
-                Network::JsonRpcProvider(starknet_test_sequencer.url()),
-                deployed_kakarot.kakarot,
-                deployed_kakarot.kakarot_proxy,
-            ),
-            JsonRpcClient::new(HttpTransport::new(starknet_test_sequencer.url())),
+            StarknetConfig::new(Network::JsonRpcProvider(url.clone()), address, proxy),
+            JsonRpcClient::new(HttpTransport::new(url)),
         );
 
         // Zero address shouldn't throw 'ContractNotFound', but return zero
