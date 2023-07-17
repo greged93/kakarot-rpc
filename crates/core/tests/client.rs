@@ -11,6 +11,7 @@ mod tests {
     use kakarot_rpc_core::client::config::{Network, StarknetConfig};
     use kakarot_rpc_core::client::KakarotClient;
     use kakarot_rpc_core::models::felt::Felt252Wrapper;
+    use lazy_static::lazy_static;
     use reth_primitives::{Address, BlockId, BlockNumberOrTag, U256};
     use starknet::core::types::FieldElement;
     use starknet::providers::jsonrpc::HttpTransport;
@@ -22,36 +23,30 @@ mod tests {
         construct_kakarot_test_sequencer, create_raw_ethereum_tx, deploy_kakarot_system, DeployedKakarot,
     };
 
-    static mut SEQUENCER: Option<Mutex<TestSequencer>> = None;
-    static mut DEPLOYED_KAKAROT: Option<Mutex<DeployedKakarot>> = None;
+    lazy_static! {
+        pub static ref SYSTEM: Mutex<(TestSequencer, DeployedKakarot)> = {
+            let expected_funded_amount = FieldElement::from_dec_str("1000000000000000000").unwrap();
+            futures::executor::block_on(async {
+                let sequencer = construct_kakarot_test_sequencer().await;
+                let kkrt = deploy_kakarot_system(&sequencer, EOA_WALLET.clone(), expected_funded_amount).await;
+                Mutex::new((sequencer, kkrt))
+            })
+        };
+    }
 
     #[tokio::test]
     #[ctor]
     async fn setup() {
         let subscriber = FmtSubscriber::builder().with_max_level(tracing::Level::INFO).finish();
         tracing::subscriber::set_global_default(subscriber).expect("setting tracing default failed");
-
-        dbg!("first");
-        unsafe {
-            let sequencer = construct_kakarot_test_sequencer().await;
-            let expected_funded_amount = FieldElement::from_dec_str("1000000000000000000").unwrap();
-            DEPLOYED_KAKAROT =
-                Some(Mutex::new(deploy_kakarot_system(&sequencer, EOA_WALLET.clone(), expected_funded_amount).await));
-            SEQUENCER = Some(Mutex::new(sequencer));
-        }
     }
 
     #[tokio::test]
     async fn test_rpc_should_not_raise_when_eoa_not_deployed() {
-        let url;
-        let address;
-        let proxy;
-
-        unsafe {
-            url = SEQUENCER.as_ref().unwrap().lock().unwrap().url();
-            address = DEPLOYED_KAKAROT.as_ref().unwrap().lock().unwrap().kakarot;
-            proxy = DEPLOYED_KAKAROT.as_ref().unwrap().lock().unwrap().kakarot_proxy;
-        }
+        let system = SYSTEM.lock().unwrap();
+        let url = system.0.url();
+        let address = system.1.kakarot;
+        let proxy = system.1.kakarot_proxy;
 
         let kakarot_client = KakarotClient::new(
             StarknetConfig::new(Network::JsonRpcProvider(url.clone()), address, proxy),
