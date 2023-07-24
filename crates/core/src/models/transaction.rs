@@ -12,6 +12,7 @@ use crate::client::errors::EthApiError;
 use crate::models::call::Calls;
 use crate::models::convertible::ConvertibleStarknetTransaction;
 
+#[derive(Debug)]
 pub struct StarknetTransaction(Transaction);
 
 impl From<Transaction> for StarknetTransaction {

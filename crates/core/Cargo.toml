@@ -1,5 +1,5 @@
 [package]
-name = "kakarot_rpc_core"
+name = "kakarot-rpc-core"
 version = { workspace = true }
 edition = { workspace = true }
 description = { workspace = true }

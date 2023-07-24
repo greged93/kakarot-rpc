@@ -9,6 +9,7 @@ use crate::client::constants::selectors::{COMPUTE_STARKNET_ADDRESS, ETH_CALL};
 use crate::client::errors::EthApiError;
 use crate::client::helpers::{decode_eth_call_return, vec_felt_to_bytes, DataDecodingError};
 
+#[derive(Debug)]
 pub struct KakarotContract<P> {
     pub address: FieldElement,
     pub proxy_account_class_hash: FieldElement,
