@@ -608,7 +608,7 @@ impl DeployedKakarot {
 
 /// Returns a `StarknetConfig` instance customized for Kakarot.
 pub fn kakarot_starknet_config() -> StarknetConfig {
-    let kakarot_steps = 2u32.pow(24);
+    let kakarot_steps = 2u32.pow(32) - 1;
     StarknetConfig {
         disable_fee: true,
         auto_mine: true,
