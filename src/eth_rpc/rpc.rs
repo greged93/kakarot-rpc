@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::starknet_client::KakarotClient;
-use jsonrpsee::core::Error;
+use jsonrpsee::server::RegisterMethodError;
 use jsonrpsee::{Methods, RpcModule};
 use starknet::providers::Provider;
 
@@ -56,7 +56,7 @@ where
         Self { modules, _phantom: PhantomData }
     }
 
-    pub fn rpc_module(&self) -> Result<RpcModule<()>, Error> {
+    pub fn rpc_module(&self) -> Result<RpcModule<()>, RegisterMethodError> {
         let mut rpc_module = RpcModule::new(());
 
         for methods in self.modules.values().cloned() {

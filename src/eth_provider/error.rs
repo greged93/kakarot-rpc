@@ -27,12 +27,6 @@ pub enum EthProviderError {
     ValueNotFound,
 }
 
-impl From<EthProviderError> for jsonrpsee::core::Error {
-    fn from(err: EthProviderError) -> Self {
-        Self::Call(err.into())
-    }
-}
-
 impl From<EthProviderError> for ErrorObject<'static> {
     fn from(value: EthProviderError) -> Self {
         rpc_err(EthRpcErrorCode::InternalError, value.to_string())

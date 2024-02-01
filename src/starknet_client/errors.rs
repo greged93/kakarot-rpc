@@ -167,12 +167,6 @@ impl From<EthApiError> for ErrorObject<'static> {
     }
 }
 
-impl From<EthApiError> for jsonrpsee::core::Error {
-    fn from(err: EthApiError) -> Self {
-        Self::Call(err.into())
-    }
-}
-
 /// Constructs a JSON-RPC error object, consisting of `code` and `message`.
 pub fn rpc_err(code: EthRpcErrorCode, msg: impl Into<String>) -> jsonrpsee::types::error::ErrorObject<'static> {
     jsonrpsee::types::error::ErrorObject::owned(code as i32, msg.into(), None::<()>)
