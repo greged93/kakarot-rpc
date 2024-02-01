@@ -3,10 +3,10 @@ use std::sync::Arc;
 use crate::starknet_client::errors::EthApiError;
 use crate::{eth_provider::provider::EthereumProvider, starknet_client::KakarotClient};
 use jsonrpsee::core::{async_trait, RpcResult as Result};
-use reth_primitives::{AccessListWithGasUsed, Address, BlockId, BlockNumberOrTag, Bytes, H256, H64, U128, U256, U64};
+use reth_primitives::{Address, BlockId, BlockNumberOrTag, Bytes, B256, B64, U128, U256, U64};
 use reth_rpc_types::{
-    CallRequest, EIP1186AccountProofResponse, FeeHistory, Filter, FilterChanges, Index, RichBlock, SyncStatus,
-    Transaction as EtherTransaction, TransactionReceipt, TransactionRequest, Work,
+    AccessListWithGasUsed, CallRequest, EIP1186AccountProofResponse, FeeHistory, Filter, FilterChanges, Index,
+    RichBlock, SyncStatus, Transaction as EtherTransaction, TransactionReceipt, TransactionRequest, Work,
 };
 use serde_json::Value;
 use starknet::providers::Provider;
@@ -65,7 +65,7 @@ where
     }
 
     #[tracing::instrument(skip_all, ret, err, fields(hash = %hash))]
-    async fn block_by_hash(&self, hash: H256, full: bool) -> Result<Option<RichBlock>> {
+    async fn block_by_hash(&self, hash: B256, full: bool) -> Result<Option<RichBlock>> {
         Ok(self.eth_provider.block_by_hash(hash, full).await?)
     }
 
@@ -75,7 +75,7 @@ where
     }
 
     #[tracing::instrument(skip_all, ret, err, fields(hash = %hash))]
-    async fn block_transaction_count_by_hash(&self, hash: H256) -> Result<U64> {
+    async fn block_transaction_count_by_hash(&self, hash: B256) -> Result<U64> {
         Ok(self.eth_provider.block_transaction_count_by_hash(hash).await?)
     }
 
@@ -85,7 +85,7 @@ where
     }
 
     #[tracing::instrument(skip_all, ret, err, fields(hash = %_hash))]
-    async fn block_uncles_count_by_block_hash(&self, _hash: H256) -> Result<U256> {
+    async fn block_uncles_count_by_block_hash(&self, _hash: B256) -> Result<U256> {
         tracing::warn!("Kakarot chain does not produce uncles");
         Ok(U256::ZERO)
     }
@@ -97,7 +97,7 @@ where
     }
 
     #[tracing::instrument(skip_all, ret, err, fields(hash = %_hash, index = ?_index))]
-    async fn uncle_by_block_hash_and_index(&self, _hash: H256, _index: Index) -> Result<Option<RichBlock>> {
+    async fn uncle_by_block_hash_and_index(&self, _hash: B256, _index: Index) -> Result<Option<RichBlock>> {
         tracing::warn!("Kakarot chain does not produce uncles");
         Ok(None)
     }
@@ -113,12 +113,12 @@ where
     }
 
     #[tracing::instrument(skip_all, ret, err, fields(hash = %hash))]
-    async fn transaction_by_hash(&self, hash: H256) -> Result<Option<EtherTransaction>> {
+    async fn transaction_by_hash(&self, hash: B256) -> Result<Option<EtherTransaction>> {
         Ok(self.eth_provider.transaction_by_hash(hash).await?)
     }
 
     #[tracing::instrument(skip_all, ret, err, fields(hash = %hash, index = ?index))]
-    async fn transaction_by_block_hash_and_index(&self, hash: H256, index: Index) -> Result<Option<EtherTransaction>> {
+    async fn transaction_by_block_hash_and_index(&self, hash: B256, index: Index) -> Result<Option<EtherTransaction>> {
         Ok(self.eth_provider.transaction_by_block_hash_and_index(hash, index).await?)
     }
 
@@ -132,7 +132,7 @@ where
     }
 
     #[tracing::instrument(skip_all, ret, err, fields(hash = %hash))]
-    async fn transaction_receipt(&self, hash: H256) -> Result<Option<TransactionReceipt>> {
+    async fn transaction_receipt(&self, hash: B256) -> Result<Option<TransactionReceipt>> {
         Ok(self.eth_provider.transaction_receipt(hash).await?)
     }
 
@@ -220,20 +220,20 @@ where
         Err(EthApiError::MethodNotSupported("eth_getWork".to_string()).into())
     }
 
-    async fn submit_hashrate(&self, _hashrate: U256, _id: H256) -> Result<bool> {
+    async fn submit_hashrate(&self, _hashrate: U256, _id: B256) -> Result<bool> {
         Err(EthApiError::MethodNotSupported("eth_submitHashrate".to_string()).into())
     }
 
-    async fn submit_work(&self, _nonce: H64, _pow_hash: H256, _mix_digest: H256) -> Result<bool> {
+    async fn submit_work(&self, _nonce: B64, _pow_hash: B256, _mix_digest: B256) -> Result<bool> {
         Err(EthApiError::MethodNotSupported("eth_submitWork".to_string()).into())
     }
 
-    async fn send_transaction(&self, _request: TransactionRequest) -> Result<H256> {
+    async fn send_transaction(&self, _request: TransactionRequest) -> Result<B256> {
         Err(EthApiError::MethodNotSupported("eth_sendTransaction".to_string()).into())
     }
 
     #[tracing::instrument(skip_all, ret, err, fields(bytes = %bytes))]
-    async fn send_raw_transaction(&self, bytes: Bytes) -> Result<H256> {
+    async fn send_raw_transaction(&self, bytes: Bytes) -> Result<B256> {
         let transaction_hash = self.kakarot_client.send_transaction(bytes).await?;
         Ok(transaction_hash)
     }
@@ -253,7 +253,7 @@ where
     async fn get_proof(
         &self,
         _address: Address,
-        _keys: Vec<H256>,
+        _keys: Vec<B256>,
         _block_id: Option<BlockId>,
     ) -> Result<EIP1186AccountProofResponse> {
         Err(EthApiError::MethodNotSupported("eth_getProof".to_string()).into())

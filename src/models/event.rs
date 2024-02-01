@@ -1,4 +1,4 @@
-use reth_primitives::{Bytes, H256, U256};
+use reth_primitives::{Bytes, B256, U256};
 use reth_rpc_types::Log;
 use starknet::core::types::Event;
 use starknet::providers::Provider;
@@ -28,9 +28,9 @@ impl StarknetEvent {
     pub fn to_eth_log<P: Provider + Send + Sync>(
         self,
         client: &KakarotClient<P>,
-        block_hash: Option<H256>,
+        block_hash: Option<B256>,
         block_number: Option<U256>,
-        transaction_hash: Option<H256>,
+        transaction_hash: Option<B256>,
         log_index: Option<U256>,
         transaction_index: Option<U256>,
     ) -> Result<Log, EthApiError> {
@@ -49,13 +49,13 @@ impl StarknetEvent {
             return Err(anyhow::anyhow!("Not a convertible event: Keys length is not even").into());
         }
 
-        let topics: Vec<H256> = keys
+        let topics: Vec<B256> = keys
             .chunks(2)
             .map(|chunk| {
                 let low: U256 = into_via_wrapper!(chunk[0]);
                 let high: U256 = into_via_wrapper!(chunk[1]);
                 let val = low | (high << 128);
-                H256::from(val)
+                B256::from(val)
             })
             .collect();
 

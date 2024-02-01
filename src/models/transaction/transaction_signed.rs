@@ -1,5 +1,5 @@
+use alloy_rlp::Decodable as _;
 use reth_primitives::{Bytes, TransactionSigned};
-use reth_rlp::Decodable as _;
 use starknet::core::types::BroadcastedInvokeTransaction;
 use starknet::providers::Provider;
 use starknet_crypto::FieldElement;

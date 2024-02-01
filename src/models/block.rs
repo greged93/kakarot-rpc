@@ -1,4 +1,5 @@
-use reth_primitives::{Address, BlockId as EthereumBlockId, BlockNumberOrTag, Bloom, Bytes, H256, H64, U256};
+use reth_primitives::{Address, BlockId as EthereumBlockId, BlockNumberOrTag, Bloom, Bytes, B256, B64, U256};
+use reth_rpc_types::other::OtherFields;
 use reth_rpc_types::{Block, BlockTransactions, Header, RichBlock};
 use starknet::core::types::{
     BlockId as StarknetBlockId, BlockTag, FieldElement, MaybePendingBlockWithTxHashes, MaybePendingBlockWithTxs,
@@ -162,7 +163,7 @@ macro_rules! to_eth_block {
         let gas_used = *GAS_USED;
 
         // TODO: Fetch real data
-        let nonce: Option<H64> = Some(H64::zero());
+        let nonce: Option<B64> = Some(B64::ZERO);
 
         // TODO:
         // Aggregate all the logs from the transactions
@@ -173,11 +174,11 @@ macro_rules! to_eth_block {
         // TODO: Fetch real data
         let base_fee_per_gas = $client.base_fee_per_gas();
 
-        let parent_hash = H256::from_slice(&$self.parent_hash().to_bytes_be());
+        let parent_hash = B256::from_slice(&$self.parent_hash().to_bytes_be());
         let sequencer = Address::from_slice(&$self.sequencer_address().to_bytes_be()[12..]);
         let timestamp = U256::from($self.timestamp());
 
-        let hash = $self.block_hash().as_ref().map(|hash| H256::from_slice(&hash.to_bytes_be()));
+        let hash = $self.block_hash().as_ref().map(|hash| B256::from_slice(&hash.to_bytes_be()));
         let number = $self.block_number().map(U256::from);
 
         // TODO: Add filter to tx_hashes
@@ -190,11 +191,11 @@ macro_rules! to_eth_block {
             uncles_hash: parent_hash,
             miner: sequencer,
             // PendingBlockWithTxHashes doesn't have a state root
-            state_root: H256::zero(),
+            state_root: B256::ZERO,
             // PendingBlockWithTxHashes doesn't have a transactions root
-            transactions_root: H256::zero(),
+            transactions_root: B256::ZERO,
             // PendingBlockWithTxHashes doesn't have a receipts root
-            receipts_root: H256::zero(),
+            receipts_root: B256::ZERO,
             // PendingBlockWithTxHashes doesn't have a block number
             number,
             gas_used,
@@ -205,8 +206,8 @@ macro_rules! to_eth_block {
             difficulty: U256::ZERO,
             nonce,
             base_fee_per_gas: Some(base_fee_per_gas),
-            mix_hash: H256::zero(),
-            withdrawals_root: Some(H256::zero()),
+            mix_hash: Some(B256::ZERO),
+            withdrawals_root: Some(B256::ZERO),
             blob_gas_used: None,
             excess_blob_gas: None,
             parent_beacon_block_root: None,
@@ -218,6 +219,7 @@ macro_rules! to_eth_block {
             transactions,
             size: Some(*SIZE),
             withdrawals: Some(vec![]),
+            other: OtherFields::default(),
         };
         Into::<RichBlock>::into(block)
     }};
@@ -226,7 +228,7 @@ macro_rules! to_eth_block {
 impl BlockWithTxHashes {
     pub async fn to_eth_block<P: Provider + Send + Sync>(&self, client: &KakarotClient<P>) -> RichBlock {
         let transactions = BlockTransactions::Hashes(
-            self.transactions().iter().map(|tx| H256::from_slice(&tx.to_bytes_be())).collect(),
+            self.transactions().iter().map(|tx| B256::from_slice(&tx.to_bytes_be())).collect(),
         );
         to_eth_block!(self, client, transactions)
     }
@@ -234,7 +236,7 @@ impl BlockWithTxHashes {
 
 impl BlockWithTxs {
     pub async fn to_eth_block<P: Provider + Send + Sync>(&self, client: &KakarotClient<P>) -> RichBlock {
-        let hash = self.block_hash().as_ref().map(|hash| H256::from_slice(&hash.to_bytes_be()));
+        let hash = self.block_hash().as_ref().map(|hash| B256::from_slice(&hash.to_bytes_be()));
         let number = self.block_number().map(U256::from);
         let transactions = client.filter_starknet_into_eth_txs(self.transactions(), hash, number).await;
         to_eth_block!(self, client, transactions)

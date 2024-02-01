@@ -9,7 +9,7 @@ use eyre::Result;
 use futures::future::join_all;
 use reqwest::Client;
 use reth_primitives::{
-    AccessList, Address, BlockId, BlockNumberOrTag, Bytes, Transaction, TransactionKind, TxEip1559, H256, U128, U256,
+    AccessList, Address, BlockId, BlockNumberOrTag, Bytes, Transaction, TransactionKind, TxEip1559, B256, U128, U256,
     U64,
 };
 use reth_rpc_types::{BlockTransactions, CallRequest, FeeHistory, Index, RichBlock, Transaction as EtherTransaction};
@@ -312,14 +312,14 @@ impl<P: Provider + Send + Sync> KakarotClient<P> {
     }
 
     /// Sends raw Ethereum transaction bytes to Kakarot
-    pub async fn send_transaction(&self, bytes: Bytes) -> Result<H256, EthApiError> {
+    pub async fn send_transaction(&self, bytes: Bytes) -> Result<B256, EthApiError> {
         let transaction: StarknetTransactionSigned = bytes.into();
 
         let invoke_transaction = transaction.to_broadcasted_invoke_transaction(self).await?;
 
         let transaction_result = self.starknet_provider.add_invoke_transaction(&invoke_transaction).await?;
 
-        Ok(H256::from_slice(&transaction_result.transaction_hash.to_bytes_be()))
+        Ok(B256::from_slice(&transaction_result.transaction_hash.to_bytes_be()))
     }
 
     /// Returns the fixed base_fee_per_gas of Kakarot
@@ -544,7 +544,7 @@ impl<P: Provider + Send + Sync> KakarotClient<P> {
     pub async fn filter_starknet_into_eth_txs(
         &self,
         transactions: Vec<TransactionType>,
-        block_hash: Option<H256>,
+        block_hash: Option<B256>,
         block_number: Option<U256>,
     ) -> BlockTransactions {
         debug!("starknet transactions: {:?}", transactions);

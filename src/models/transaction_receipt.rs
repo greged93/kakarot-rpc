@@ -1,6 +1,5 @@
-use reth_primitives::bloom::logs_bloom;
-use reth_primitives::contract::create_address;
-use reth_primitives::{U128, U256, U64, U8};
+use reth_primitives::{logs_bloom, U128, U256, U64, U8};
+use reth_rpc_types::other::OtherFields;
 use reth_rpc_types::{Log, TransactionReceipt as EthTransactionReceipt};
 use starknet::core::types::{
     ExecutionResult, InvokeTransactionReceipt, MaybePendingTransactionReceipt, TransactionReceipt,
@@ -65,7 +64,7 @@ impl StarknetTransactionReceipt {
                                 // If to is Some, means contract_address should be None as it is a normal transaction
                                 Some(_) => None,
                                 // If to is None, is a contract creation transaction so contract_address should be Some
-                                None => Some(create_address(eth_tx.from, eth_tx.nonce.as_u64())),
+                                None => Some(create_address(eth_tx.from, eth_tx.nonce)),
                             }
                         }
                         ExecutionResult::Reverted { ref reason } => {
@@ -119,6 +118,7 @@ impl StarknetTransactionReceipt {
                         transaction_type: U8::from(0),              // TODO: Fetch real data
                         blob_gas_price: None,
                         blob_gas_used: None,
+                        other: OtherFields::default(),
                     }
                 }
                 // L1Handler, Declare, Deploy and DeployAccount transactions unsupported for now in

@@ -1,8 +1,8 @@
 use std::slice::SliceIndex;
 
+use alloy_rlp::Decodable;
 use bytes::BytesMut;
 use reth_primitives::{Signature, Transaction, TransactionSigned};
-use reth_rlp::Decodable;
 use starknet::accounts::Call as StarknetCall;
 use starknet_crypto::FieldElement;
 

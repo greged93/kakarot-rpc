@@ -7,7 +7,8 @@ use mongodb::bson::Document;
 use reth_primitives::Address;
 use reth_primitives::BlockId;
 use reth_primitives::Bytes;
-use reth_primitives::{BlockNumberOrTag, H256, U256, U64};
+use reth_primitives::{BlockNumberOrTag, B256, U256, U64};
+use reth_rpc_types::other::OtherFields;
 use reth_rpc_types::Filter;
 use reth_rpc_types::FilterChanges;
 use reth_rpc_types::Index;
@@ -59,7 +60,7 @@ pub trait EthereumProvider {
     /// Returns the chain id.
     async fn chain_id(&self) -> EthProviderResult<Option<U64>>;
     /// Returns a block by hash. Block can be full or just the hashes of the transactions.
-    async fn block_by_hash(&self, hash: H256, full: bool) -> EthProviderResult<Option<RichBlock>>;
+    async fn block_by_hash(&self, hash: B256, full: bool) -> EthProviderResult<Option<RichBlock>>;
     /// Returns a block by number. Block can be full or just the hashes of the transactions.
     async fn block_by_number(
         &self,
@@ -67,15 +68,15 @@ pub trait EthereumProvider {
         full: bool,
     ) -> EthProviderResult<Option<RichBlock>>;
     /// Returns the transaction count for a block by hash.
-    async fn block_transaction_count_by_hash(&self, hash: H256) -> EthProviderResult<U64>;
+    async fn block_transaction_count_by_hash(&self, hash: B256) -> EthProviderResult<U64>;
     /// Returns the transaction count for a block by number.
     async fn block_transaction_count_by_number(&self, number_or_tag: BlockNumberOrTag) -> EthProviderResult<U64>;
     /// Returns the transaction by hash.
-    async fn transaction_by_hash(&self, hash: H256) -> EthProviderResult<Option<Transaction>>;
+    async fn transaction_by_hash(&self, hash: B256) -> EthProviderResult<Option<Transaction>>;
     /// Returns the transaction by block hash and index.
     async fn transaction_by_block_hash_and_index(
         &self,
-        hash: H256,
+        hash: B256,
         index: Index,
     ) -> EthProviderResult<Option<Transaction>>;
     /// Returns the transaction by block number and index.
@@ -85,7 +86,7 @@ pub trait EthereumProvider {
         index: Index,
     ) -> EthProviderResult<Option<Transaction>>;
     /// Returns the transaction receipt by hash of the transaction.
-    async fn transaction_receipt(&self, hash: H256) -> EthProviderResult<Option<TransactionReceipt>>;
+    async fn transaction_receipt(&self, hash: B256) -> EthProviderResult<Option<TransactionReceipt>>;
     /// Returns the balance of an address.
     async fn balance(&self, address: Address, block_id: Option<BlockId>) -> EthProviderResult<U256>;
     /// Returns the storage of an address at a certain index.
@@ -163,7 +164,7 @@ where
         Ok(chain_id.map(Into::into))
     }
 
-    async fn block_by_hash(&self, hash: H256, full: bool) -> EthProviderResult<Option<RichBlock>> {
+    async fn block_by_hash(&self, hash: B256, full: bool) -> EthProviderResult<Option<RichBlock>> {
         let header_filter = into_filter("header.hash", hash, 64);
         let tx_filter = into_filter("tx.blockHash", hash, 64);
         let block = self.block(header_filter, tx_filter, full).await?;
@@ -185,7 +186,7 @@ where
         Ok(block)
     }
 
-    async fn block_transaction_count_by_hash(&self, hash: H256) -> EthProviderResult<U64> {
+    async fn block_transaction_count_by_hash(&self, hash: B256) -> EthProviderResult<U64> {
         let filter = into_filter("tx.blockHash", hash, 64);
         let count = self.database.count("transactions", filter).await?;
         Ok(count.into())
@@ -199,7 +200,7 @@ where
         Ok(count.into())
     }
 
-    async fn transaction_by_hash(&self, hash: H256) -> EthProviderResult<Option<Transaction>> {
+    async fn transaction_by_hash(&self, hash: B256) -> EthProviderResult<Option<Transaction>> {
         let filter = into_filter("tx.hash", hash, 64);
         let tx: Option<StoredTransaction> = self.database.get_one("transactions", filter, None).await?;
         Ok(tx.map(Into::into))
@@ -207,7 +208,7 @@ where
 
     async fn transaction_by_block_hash_and_index(
         &self,
-        hash: H256,
+        hash: B256,
         index: Index,
     ) -> EthProviderResult<Option<Transaction>> {
         let mut filter = into_filter("tx.blockHash", hash, 64);
@@ -230,7 +231,7 @@ where
         Ok(tx.map(Into::into))
     }
 
-    async fn transaction_receipt(&self, hash: H256) -> EthProviderResult<Option<TransactionReceipt>> {
+    async fn transaction_receipt(&self, hash: B256) -> EthProviderResult<Option<TransactionReceipt>> {
         let filter = into_filter("receipt.transactionHash", hash, 64);
         let tx: Option<StoredTransactionReceipt> = self.database.get_one("receipts", filter, None).await?;
         Ok(tx.map(Into::into))
@@ -309,7 +310,7 @@ where
             _ => (from, to),
         };
 
-        // Convert the topics to a vector of H256
+        // Convert the topics to a vector of B256
         let topics = filter
             .topics
             .into_iter()
@@ -391,6 +392,7 @@ where
             uncles: Vec::new(),
             size: None,
             withdrawals: None,
+            other: OtherFields::default(),
         };
 
         Ok(Some(block.into()))
@@ -399,8 +401,8 @@ where
     /// Convert the given BlockNumberOrTag into a block number
     async fn tag_into_block_number(&self, tag: BlockNumberOrTag) -> EthProviderResult<U64> {
         match tag {
-            BlockNumberOrTag::Earliest => Ok(U64::zero()),
-            BlockNumberOrTag::Number(number) => Ok(number.into()),
+            BlockNumberOrTag::Earliest => Ok(U64::ZERO),
+            BlockNumberOrTag::Number(number) => Ok(U64::from(number)),
             BlockNumberOrTag::Latest | BlockNumberOrTag::Finalized | BlockNumberOrTag::Safe => {
                 self.block_number().await
             }

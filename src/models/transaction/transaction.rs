@@ -1,4 +1,5 @@
-use reth_primitives::{Transaction as TransactionType, H256, U128, U256, U64};
+use reth_primitives::{Transaction as TransactionType, B256, U128, U256, U64};
+use reth_rpc_types::other::OtherFields;
 use reth_rpc_types::{Signature, Transaction as EthTransaction};
 use starknet::core::types::{BlockId as StarknetBlockId, FieldElement, InvokeTransaction, StarknetError, Transaction};
 use starknet::providers::{MaybeUnknownErrorCode, Provider, ProviderError, StarknetErrorWithMessage};
@@ -47,8 +48,8 @@ impl StarknetTransaction {
     invoke_transaction_field!((contract_address, sender_address), Felt252Wrapper);
     invoke_transaction_field!((signature, signature), Vec<FieldElement>);
 
-    pub fn transaction_hash(&self) -> H256 {
-        H256::from_slice(&self.0.transaction_hash().to_bytes_be())
+    pub fn transaction_hash(&self) -> B256 {
+        B256::from_slice(&self.0.transaction_hash().to_bytes_be())
     }
 }
 
@@ -56,7 +57,7 @@ impl StarknetTransaction {
     pub async fn to_eth_transaction<P: Provider + Send + Sync>(
         &self,
         client: &KakarotClient<P>,
-        block_hash: Option<H256>,
+        block_hash: Option<B256>,
         block_number: Option<U256>,
         transaction_index: Option<U256>,
     ) -> Result<EthTransaction, EthApiError> {
@@ -85,7 +86,7 @@ impl StarknetTransaction {
             },
             _ => return Err(EthApiError::KakarotDataFilteringError("Transaction".into())),
         };
-        let nonce: U64 = u64::try_from(nonce)?.into();
+        let nonce = U64::from(u64::try_from(nonce)?);
 
         let from = client.get_evm_address(&sender_address).await?;
 
@@ -106,7 +107,7 @@ impl StarknetTransaction {
             .try_into()
             .map_err(|_| EthApiError::KakarotDataFilteringError("Transaction Signature".into()))?;
         let to = tx.to();
-        let value = U256::from(tx.value());
+        let value = tx.value().into();
         let max_fee_per_gas = Some(U128::from(tx.max_fee_per_gas()));
         let transaction_type = Some(U64::from(Into::<u8>::into(tx.tx_type())));
 
@@ -127,11 +128,12 @@ impl StarknetTransaction {
             max_priority_fee_per_gas,
             input,
             signature,
-            chain_id: Some(CHAIN_ID.into()),
+            chain_id: Some(U64::from(CHAIN_ID)),
             access_list: None, // TODO fetch the access list
             transaction_type,
             max_fee_per_blob_gas: None,
             blob_versioned_hashes: Vec::new(),
+            other: OtherFields::default(),
         })
     }
 }
