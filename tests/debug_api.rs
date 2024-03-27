@@ -1,4 +1,5 @@
 #![cfg(feature = "testing")]
+
 use alloy_rlp::{Decodable, Encodable};
 use kakarot_rpc::eth_provider::provider::EthereumProvider;
 use kakarot_rpc::models::block::rpc_to_primitive_block;
@@ -269,20 +270,22 @@ async fn test_raw_transactions(#[future] katana: Katana, _setup: ()) {
         let tx = eth_provider.transaction_by_hash(actual_tx.hash).await.unwrap().unwrap();
         let signature = tx.signature.unwrap();
 
-        // Convert the transaction to a primitives transactions and encode it.
-        let rlp_bytes = TransactionSigned::from_transaction_and_signature(
+        let tx = TransactionSigned::from_transaction_and_signature(
             rpc_transaction_to_primitive(tx).unwrap(),
             reth_primitives::Signature {
                 r: signature.r,
                 s: signature.s,
                 odd_y_parity: signature.y_parity.unwrap_or(reth_rpc_types::Parity(false)).0,
             },
-        )
-        .envelope_encoded();
+        );
+        // Convert the transaction to a primitives transactions and encode it.
+        let rlp_bytes = tx.envelope_encoded();
 
         // Assert the equality of the constructed receipt with the corresponding receipt from both block hash and block number.
         assert_eq!(rlp_bytes_by_block_number[i], rlp_bytes);
         assert_eq!(rlp_bytes_by_block_hash[i], rlp_bytes);
+        assert_eq!(TransactionSigned::decode(&mut rlp_bytes_by_block_number[i].as_ref()).unwrap(), tx);
+        assert_eq!(TransactionSigned::decode(&mut rlp_bytes_by_block_hash[i].as_ref()).unwrap(), tx);
     }
 
     // Stop the Kakarot RPC server.
