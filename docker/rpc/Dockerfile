@@ -8,13 +8,17 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder 
 COPY --from=planner /app/recipe.json recipe.json
 
-# Build application
-COPY . .
 # Install system dependencies
 RUN apt-get update && \
     apt-get -y upgrade && \
     apt-get install --no-install-recommends -y libclang-dev
-RUN --mount=type=cache,target=/root/.cache/cargo cargo build --release --bin kakarot-rpc
+
+# Builds dependencies
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Build application
+COPY . .
+RUN cargo build --release --bin kakarot-rpc
 
 FROM debian:bookworm-slim AS runtime
 WORKDIR /usr/src/app

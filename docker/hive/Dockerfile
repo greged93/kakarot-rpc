@@ -71,10 +71,6 @@ WORKDIR /usr/src/compiler
 
 COPY . .
 
-# Similar to `make setup` but we remove the `make build-sol` step
-# which uses docker to build the experimental solidity contracts.
-# Using docker in docker is not supported in the current setup.
-
 # Install asdf for multiple scarb versions
 RUN git clone --depth 1 https://github.com/asdf-vm/asdf.git "$HOME/.asdf" && \
     echo ". $HOME/.asdf/asdf.sh" >> "$HOME/.bashrc" && \
@@ -83,6 +79,9 @@ RUN git clone --depth 1 https://github.com/asdf-vm/asdf.git "$HOME/.asdf" && \
 SHELL ["/bin/bash", "-c"]
 RUN source "$HOME/.asdf/asdf.sh" && asdf plugin add scarb && asdf install scarb 0.7.0  && asdf install scarb 2.6.5
 
+# Similar to `make setup` but we remove the `make build-sol` step
+# which uses docker to build the experimental solidity contracts.
+# Using docker in docker is not supported in the current setup.
 RUN --mount=type=cache,target=/root/.cache \
     source "$HOME/.asdf/asdf.sh" \
     && chmod +x ./scripts/extract_abi.sh \
