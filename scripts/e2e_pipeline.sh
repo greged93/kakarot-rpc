@@ -77,9 +77,9 @@ if [ "${ENV}" = "sepolia" ]; then
 	SKIP="--ignore tests/end_to_end/L1L2Messaging --ignore tests/end_to_end/CairoPrecompiles --ignore tests/end_to_end/EvmPrecompiles --ignore tests/end_to_end/test_kakarot.py"
 elif [ "${ENV}" = "kakarot-staging" ]; then
 	export EVM_PRIVATE_KEY="0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
-	export KAKAROT_STAGING_RPC_URL="https://juno-kakarot-testnet-stage.karnot.xyz"
-	export KAKAROT_STAGING_ACCOUNT_ADDRESS="0x7ecf6cd45c32ce84812e660cc176cb8b4de2e7a6d5916fe326bf871466fbe02"
-	export WEB3_HTTP_PROVIDER_URI="https://kkrt-rpc-kakarot-testnet-stage.karnot.xyz"
+	export KAKAROT_STAGING_RPC_URL="https://juno-kakarot-sepolia.karnot.xyz/"
+	export KAKAROT_STAGING_ACCOUNT_ADDRESS="0x06b23fc7c18611614fef21f11620bf033888ae9eae2316af44100debc9faa01a"
+	export WEB3_HTTP_PROVIDER_URI="https://rpc-kakarot-sepolia-staging.karnot.xyz/"
 	if [ -z "${KAKAROT_STAGING_PRIVATE_KEY}" ]; then
 		echo "Please provide the KAKAROT_STAGING_PRIVATE_KEY environment variable. The private key should be loaded using gpg: gpg -r recipient@kakarot.org --decrypt path/to/encrypted/key.gpg"
 		exit 1
@@ -92,7 +92,7 @@ fi
 if ${run_deploy}; then
 	echo "Deploying the contracts to the ${ENV} environment"
 
-	make setup && make build-sol && make build && make fetch-ssj-artifacts && make build-cairo1
+	uv sync --all-extras --dev && make build-sol && make build && make fetch-ssj-artifacts && make build-cairo1
 	uv run python ./kakarot_scripts/deploy_kakarot.py
 fi
 

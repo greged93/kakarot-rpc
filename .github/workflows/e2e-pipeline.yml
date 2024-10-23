@@ -1,7 +1,23 @@
 ---
-name: staging
+name: e2e pipeline
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to use
+        required: true
+        type: choice
+        options:
+          - sepolia
+          - staging
+      action:
+        description: Action to perform on the selected environment
+        required: true
+        type: choice
+        options:
+          - deploy
+          - test
 
 jobs:
   stage:
@@ -12,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: install foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -34,19 +50,19 @@ jobs:
             ${{ secrets.KAKAROT_STAGING_PRIVATE_KEY }}
         run: |
           cd scripts
-          sh upgrade.sh deploy test --staging
+          sh e2e_pipeline.sh ${{ github.event.inputs.action }} --${{ github.event.inputs.environment }}
       - name: Check diff in deployments
         run: |
           cd lib/kakarot
           set +e
-          git diff --no-patch --exit-code -- deployments/kakarot-staging/
+          git diff --no-patch --exit-code -- deployments/
           has_diff=$?
           set -e
           echo "has_diff=$has_diff" >> $GITHUB_ENV
       - name: Create PR for deployment updates
         if: ${{ env.has_diff == 1 }}
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
           cd lib/kakarot
